@@ -1,0 +1,7 @@
+torch
+pandas
+matplotlib
+seaborn
+ipykernel
+pynvml
+openpyxl
