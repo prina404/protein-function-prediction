@@ -1,5 +1,7 @@
 import os
+import numpy as np
 import pandas as pd
+import torch
 import torch.nn as nn
 
 from torch.utils.data import Dataset
@@ -19,17 +21,38 @@ class ProteinDataset(Dataset):
         if not data_split_ok:  # check if train and test folders exist, otherwise create them
             make_test_train_folders()
 
+        # Read data and create the label encoder
         self.data = pd.read_csv(data_file)
-        self.df_embedding = pd.read_csv(CFG.data_dir / "protVec_100d_3grams.csv", sep="\t")
-
         self.label_encoder = LabelBinarizer().fit(self.data["label"])
+
+        # Create the embedding dictionary
+        df_3grams = pd.read_csv(CFG.data_dir / "protVec_100d_3grams.csv", sep="\t")
+
+        keys = df_3grams['words'].to_numpy()
+        values = df_3grams.iloc[:, 1:].to_numpy(dtype=np.float32)
+
+        self.embedding_dict = dict(zip(keys, values))
 
     def __len__(self) -> int:
         return len(self.data)
 
-    def _create_embedding(self, sequence: str) -> nn.Embedding:
-        # TODO: we need to define how to create the full protein embedding
-        return sequence
+    # We apply the same sequence overlapping technique used in the paper:
+    # e.g. AGFOYLEK... =
+    # [AGF, OYL, EK.] -> offset 0
+    # [GFO, YLE, K..] -> offset 1
+    # [FOY, LEK, ...] -> offset 2
+    def _create_embedding(self, seq: str) -> torch.Tensor:
+        splits = []
+        for offset in range(3):
+            splits.append([seq[offset + i : offset + i + 3] for i in range(0, len(seq) - 2, 3)])
+            if len(splits[-1][-1]) < 3:  # if last split is not a 3gram, remove it
+                del splits[-1][-1]
+
+        # sum the embeddings of the 3grams
+        embedded_splits = [sum(map(lambda x: self.embedding_dict[x], s)) for s in splits] 
+        # sum the three splits
+        embedding = sum(embedded_splits) 
+        return torch.tensor(embedding, dtype=torch.float32)
 
     def __getitem__(self, idx: int) -> tuple:
         seq, label = self.data.iloc[idx]
