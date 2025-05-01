@@ -21,7 +21,7 @@ class ProteinDataset(Dataset):
         if not data_split_ok:  # check if train and test folders exist, otherwise create them
             make_test_train_folders()
 
-        # Read data and create the label encoder
+        # Read data from disk and initialize the label encoder
         self.data = pd.read_csv(data_file)
         self.label_encoder = LabelBinarizer().fit(self.data["label"])
 
@@ -60,29 +60,37 @@ class ProteinDataset(Dataset):
         oneHot_label = self.label_encoder.transform([label])[0]
         return seq_embedding, oneHot_label
 
-
 def make_test_train_folders():
-    df = rawdata_to_df()
-    # df = preprocess_data(df)
+    """
+    Splits the raw dataset into training and test sets, preprocesses the data, 
+    and saves them into respective directories as CSV files.
+    """
 
-    # TODO: should stratify by label, but we need to perform some preprocessing first:
-    # (there are labels that appear very few times, and we need to group them together)
+    df = rawdata_to_df()
+    df = preprocess_data(df, CFG['data']['num_classes']) 
+
     df_train, df_test = train_test_split(
         df,
         test_size=CFG["data"]["validation_split"],
         random_state=CFG["project"]["seed"],
         shuffle=True,
+        stratify=df["label"],
     )
-    print("Saving train and test data in the appropriate folders...")
+    print("Saving train and test data in the respective directories...")
     os.makedirs(CFG.train_data.parent, exist_ok=True)
     os.makedirs(CFG.test_data.parent, exist_ok=True)
     df_train.to_csv(CFG.train_data, index=False)
     df_test.to_csv(CFG.test_data, index=False)
 
 
-# Reads the raw data files, and merges them into a single DataFrame with columns: ["sequence", "label"]
 def rawdata_to_df() -> pd.DataFrame:
-    # Check if the dataset is already unzipped
+    """
+    Reads raw data files, merges them into a single DataFrame with columns 
+    ["sequence", "label"], and removes duplicates.
+    
+    Returns:
+        pd.DataFrame: The merged and cleaned dataset.
+    """
     assert os.path.exists(CFG.data_dir / "family_classification_metadata.xlsx")
     assert os.path.exists(CFG.data_dir / "family_classification_sequences.csv")
     assert os.path.exists(CFG.data_dir / "protVec_100d_3grams.csv")
@@ -93,13 +101,53 @@ def rawdata_to_df() -> pd.DataFrame:
     df_meta = pd.read_excel(metadata_file)
     df_seq = pd.read_csv(sequence_file)
 
-    print("Merging data files...")
+    # Merge together the sequence column and the family ID column
     df_final = pd.concat([df_seq, df_meta["Family ID"]], axis=1).drop_duplicates()
-    df_final.columns = ["sequence", "label"]  # final df columns
+    df_final.columns = ["sequence", "label"]  # final df columns names
 
     return df_final
 
 
-# Keep the N most frequent labels, and group the rest into "other"
-def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
-    pass
+def preprocess_data(df: pd.DataFrame, N: int) -> pd.DataFrame:
+    """
+    Preprocesses the dataset by keeping the N most frequent labels and grouping 
+    the rest into an "other" category.
+    
+    Args:
+        df: The input dataframe with columns ["sequence", "label"].
+        N:  The number of most frequent labels to retain.
+
+    Returns:
+        pd.DataFrame: The preprocessed dataset.
+    """
+    print("Preprocessing data...")
+    df = multilabel_to_singlelabel(df)  # convert multilabel to single label
+    top_labels = set(df['label'].value_counts().index[:N])  # these are the N most common labels
+    
+    # set all labels that are not in top_labels to "other"
+    df.loc[~df['label'].isin(top_labels), 'label'] = "other"  
+    return df
+
+
+def multilabel_to_singlelabel(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Converts a multilabel DataFrame to a single-label DataFrame by retaining 
+    the least frequent label for each sequence.
+
+    Args:
+        df (pd.DataFrame): The input dataset with potential multilabel entries.
+
+    Returns:
+        pd.DataFrame: The dataset with single labels per sequence.
+    """
+    label_frequency = df.groupby('label').count() # count the number of sequences for each label
+    sorted_labels = list(label_frequency.sort_values(by='sequence').index) # sort by frequency
+
+    label_ranking = {label:idx for idx, label in enumerate(sorted_labels)} # create a ranking dict
+    df["ranking"] = df["label"].map(label_ranking) # add a column for sorting the entire df
+
+    df = df.sort_values(by=['sequence', 'ranking']) # primary key: seq, secondary key: label
+    df = df.drop(columns=["ranking"]) 
+    df = df.drop_duplicates(subset=["sequence"], keep="first") # keep only the less frequent label
+
+    return df
