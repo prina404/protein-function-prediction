@@ -15,11 +15,11 @@ data:
   batch_size: 64
   shuffle: true
   validation_split: 0.15
+  num_classes: 5
 
 sample_model_config:
   name: MyMLP
   input_size: [100]
-  num_classes: 5
   dropout_rate: 0.3
   training:
     epochs: 50

@@ -6,3 +6,4 @@ ipykernel
 pynvml
 openpyxl
 scikit-learn
+pyyaml
