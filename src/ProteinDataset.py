@@ -8,6 +8,7 @@ from utils.config import CFG
 from torch.utils.data import Dataset
 from sklearn.preprocessing import LabelBinarizer
 from pathlib import Path
+from collections import defaultdict
 
 
 class ProteinDataset(Dataset):
@@ -30,7 +31,11 @@ class ProteinDataset(Dataset):
         keys = df_3grams["words"].to_numpy()
         values = df_3grams.iloc[:, 1:].to_numpy(dtype=np.float32)
 
-        self.embedding_dict = dict(zip(keys, values))
+        embeddings = dict(zip(keys, values))
+        default_embedding = embeddings["<unk>"]
+        # if I encounter a 3gram not in the dictionary, I will use the embedding of <unk>
+        self.embedding_dict = defaultdict(lambda: default_embedding, embeddings)
+
 
     def __len__(self) -> int:
         return len(self.data)
@@ -58,4 +63,4 @@ class ProteinDataset(Dataset):
         seq_embedding = self._create_embedding(seq)
         oneHot_label = self.label_encoder.transform([label])[0]
 
-        return seq_embedding, oneHot_label
+        return seq_embedding, torch.tensor(oneHot_label, dtype=torch.float32)
