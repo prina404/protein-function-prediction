@@ -4,6 +4,7 @@ import torch
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from collections.abc import Callable
+from tqdm import tqdm
 from utils.config import CFG
 
 
@@ -46,6 +47,9 @@ class Trainer:
         self, model: nn.Module, optimizer: Optimizer, loss_fn: Callable, metrics: dict = None, scheduler=None
     ):
         self.model = model.to(CFG.device)
+        if CFG.device == 'cuda':
+            self.model.compile()
+            
         self.optim = optimizer
         self.loss_fn = loss_fn
         self.metrics = metrics if metrics else {}
@@ -53,9 +57,11 @@ class Trainer:
 
     def train(self, train_data: DataLoader, val_data: DataLoader, epochs=20, early_stopping: EarlyStopping = None):
         history = {"train_loss": [], "validation_loss": [], "metrics": {m: [] for m in self.metrics}}
+
         for epoch in range(epochs):
             self.model.train(True)  # set the model to train mode
             total_loss = 0
+            progress_bar = tqdm(train_data, desc=f"\nEpoch {epoch+1}/{epochs}", leave=True)
 
             for X, Y in train_data:
                 X, Y = X.to(CFG.device), Y.to(CFG.device)       # send batch to device
@@ -66,6 +72,10 @@ class Trainer:
                 self.optim.step()                               # update parameters accordingly
                 total_loss += loss.item()
 
+                progress_bar.update(1)                          # update progress bar
+                progress_bar.set_postfix(loss=loss.item())
+
+            progress_bar.close()
             train_loss = total_loss / len(train_data)   # avg batch loss
             history["train_loss"] = train_loss          # record training loss
             print(f"[{epoch + 1}/{epochs}] Train Loss: {train_loss:.4f}")
@@ -93,7 +103,7 @@ class Trainer:
         total_loss = 0
         all_pred = []
         all_labels = []
-
+        progress_bar = tqdm(val_data, desc=f"Evaluation", leave=True)
         with torch.no_grad():
             for X, Y in val_data:
                 X, Y = X.to(CFG.device), Y.to(CFG.device)  # send batches to device
@@ -101,7 +111,10 @@ class Trainer:
                 total_loss += self.loss_fn(Y_pred, Y).item()  # compute loss on the prediction
                 all_pred.append(Y_pred.detach().cpu())  # detach tensors and send them back to cpu
                 all_labels.append(Y.detach().cpu())
+                
+                progress_bar.update(1)                          # update progress bar
 
+        progress_bar.close()
         val_loss = total_loss / len(val_data)  # avg batch loss
         all_pred = torch.concatenate(all_pred)  # concat all tensors in a single tensor
         all_labels = torch.concatenate(all_labels)
