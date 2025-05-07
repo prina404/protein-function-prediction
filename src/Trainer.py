@@ -21,10 +21,14 @@ class EarlyStopping:
     def __init__(self, patience=10, min_delta=0.001, restore_best_weights=True):
         self.patience = patience
         self.restore_best_weights = restore_best_weights
-        self.best_loss = float("inf")
-        self.counter = 0
-        self.best_weights = None
         self.min_delta = min_delta
+        self.reset_state()
+
+    def reset_state(self):
+        self.counter = 0
+        self.best_loss = float("inf")
+        self.best_weights = None
+        self.was_triggered = False
 
     def step(self, model: nn.Module, val_loss: float):
         # when I observe an improvement greater than delta, reset counter & backup model parameters
@@ -36,9 +40,10 @@ class EarlyStopping:
         else:
             self.counter += 1
 
-        return self.counter >= self.patience  # returns false if earlystopping policy is triggered
+        self.was_triggered = self.counter >= self.patience  
+        return self.was_triggered   # returns true if earlystopping policy is triggered
 
-    def restore(self, model: nn.Module):
+    def restore_weights(self, model: nn.Module):
         if self.best_weights:
             model.load_state_dict(self.best_weights)
 
@@ -67,6 +72,9 @@ class Trainer:
         self.scheduler_init = copy.deepcopy(scheduler.state_dict()) if scheduler else None
 
     def train(self, train_data: DataLoader, val_data: DataLoader, epochs=20, early_stopping: EarlyStopping = None):
+        if early_stopping: # reset early stopping in case multiple training runs are performed
+            early_stopping.reset_state()
+
         for epoch in range(epochs):
             self.model.train(True)  # set the model to train mode
             total_loss = 0
@@ -101,8 +109,9 @@ class Trainer:
             if early_stopping and early_stopping.step(self.model, val_loss):
                 print("Stopping training due to EarlyStopping")
                 if early_stopping.restore_best_weights:
-                    early_stopping.restore(self.model)          # restore weights with lowest observed validation error
+                    early_stopping.restore_weights(self.model)          # restore weights with lowest observed validation error
                 break
+  
 
     def evaluate(self, val_data: DataLoader) -> float:
         self.model.eval()  # set the model to evaluation mode
