@@ -7,3 +7,5 @@ pynvml
 openpyxl
 scikit-learn
 pyyaml
+torchmetrics
+tqdm
