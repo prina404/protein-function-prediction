@@ -1,0 +1,33 @@
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "protein_function_prediction"
+version = "0.0.1"
+authors = [
+    { "name" = "Matteo Princisgh" },
+    { "name" = "Luca Arborio" },
+    { "name" = "Alice Giardina" },
+]
+description = "Protein function prediction using deep learning for the D4L Hackathon 2025 in Heidelberg"
+dependencies = [
+    "torch",
+    "pandas",
+    "matplotlib",
+    "seaborn",
+    "ipykernel",
+    "pynvml",
+    "openpyxl",
+    "scikit-learn",
+    "pyyaml",
+    "torchmetrics",
+    "tqdm",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
