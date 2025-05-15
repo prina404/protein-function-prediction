@@ -35,28 +35,24 @@ class ProteinDataset(Dataset):
         default_embedding = embeddings["<unk>"]
         # if I encounter a 3gram not in the dictionary, I will use the embedding of <unk>
         self.embedding_dict = defaultdict(lambda: default_embedding, embeddings)
+        self.embedding_size = len(default_embedding)
 
 
     def __len__(self) -> int:
         return len(self.data)
 
-    # We apply the same sequence overlapping technique used in the paper:
-    # e.g. AGFOYLEK... =
-    # [AGF, OYL, EK.] -> offset 0
-    # [GFO, YLE, K..] -> offset 1
-    # [FOY, LEK, ...] -> offset 2
+    # Use a sliding window to create the embedding matrix
+    def _full_embeddings(self, seq: str) -> torch.Tensor:
+        matrix = np.zeros((len(seq)-2, self.embedding_size), dtype=np.float32)
+        for i in range(len(seq)-2):
+            matrix[i] = self.embedding_dict[seq[i:i+3]]
+
+        return torch.tensor(matrix, dtype=torch.float32)
+    
     def _create_embedding(self, seq: str) -> torch.Tensor:
-        splits = []
-        for offset in range(3):
-            splits.append([seq[offset + i : offset + i + 3] for i in range(0, len(seq) - 2, 3)])
-            if len(splits[-1][-1]) < 3:  # if last split is not a 3gram, remove it
-                del splits[-1][-1]
-
-        # sum the embeddings of the 3grams
-        embedded_splits = [sum(map(lambda x: self.embedding_dict[x], s)) for s in splits]
-        embedding = sum(embedded_splits)  # sum the three splits
-
-        return torch.tensor(embedding, dtype=torch.float32)
+        embedding_matrix = self._full_embeddings(seq)
+        # sum matrix rows together to get a single embedding
+        return torch.sum(embedding_matrix, dim=0)  
 
     def __getitem__(self, idx: int) -> tuple:
         seq, label = self.data.iloc[idx]
