@@ -16,6 +16,7 @@ data:
   shuffle: true
   validation_split: 0.15
   num_classes: 5
+  embedding_dim: 100
 
 sample_model_config:
   name: MyMLP
@@ -38,4 +39,12 @@ hyperopt:
   max_trials: 50
   sampler: tpe
   pruner: hyperband
+
+transformer:
+  max_seq_len: 4000 
+  max_embeddings_per_batch: 80000 # maximum number of embeddings in a batch
+  num_heads: 10
+  num_blocks: 6
+  ff_size: 256
+  head_layers: 2
 

@@ -54,7 +54,7 @@ class Trainer:
     ):
         self.model = model.to(CFG.device)
         if CFG.device == 'cuda':
-            self.model.compile()
+            self.model.compile(mode='reduce-overhead')
             
         self.optim = optimizer
         self.loss_fn = loss_fn
@@ -80,6 +80,7 @@ class Trainer:
             total_loss = 0
 
             progress_bar = tqdm(train_data, desc=f"\nEpoch {epoch+1}/{epochs}", leave=True)
+            it = 0
             for X, Y in progress_bar:
                 X, Y = X.to(CFG.device), Y.to(CFG.device)           # send batch to device
                 self.optim.zero_grad()                              # reset optimizer gradients from previous step
@@ -88,9 +89,9 @@ class Trainer:
                 loss.backward()                                     # compute loss gradient for each parameter
                 self.optim.step()                                   # update parameters accordingly
                 total_loss += loss.item()
-
-                progress_bar.update()                               # update progress bar
+                it += 1
                 progress_bar.set_postfix(loss=loss.item())
+                progress_bar.update()                               # update progress bar
 
             progress_bar.close()
 
@@ -120,17 +121,18 @@ class Trainer:
         all_labels = []
         progress_bar = tqdm(val_data, desc=f"Evaluation", leave=True)
         with torch.no_grad():
+            it = 0
             for X, Y in val_data:
                 X, Y = X.to(CFG.device), Y.to(CFG.device)       # send batches to device
                 Y_pred = self.model(X)                          # get predictions
                 total_loss += self.loss_fn(Y_pred, Y).item()    # compute loss on the prediction
                 all_pred.append(Y_pred.detach().cpu())          # detach tensors and send them back to cpu
                 all_labels.append(Y.detach().cpu())
-                
+                it += 1
                 progress_bar.update()                          # update progress bar
 
         progress_bar.close()
-        val_loss = total_loss / len(val_data)               # avg batch loss
+        val_loss = total_loss / it               # avg batch loss
         all_pred = torch.concatenate(all_pred)              # concat all tensors in a single tensor
         all_labels = torch.concatenate(all_labels)
 
