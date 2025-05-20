@@ -13,6 +13,7 @@ paths:  # paths are relative to the project's root folder
 
 data:
   batch_size: 64
+  max_seq_len: 2000
   shuffle: true
   validation_split: 0.15
   num_classes: 5
