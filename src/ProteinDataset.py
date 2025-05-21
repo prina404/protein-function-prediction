@@ -23,6 +23,10 @@ class ProteinDataset(Dataset):
 
         # Read data from disk and initialize the label encoder
         self.data = pd.read_csv(data_file)
+        max_len = CFG['data']['max_seq_len']
+        # Remove sequences longer than max_seq_len
+        self.data = self.data[self.data["sequence"].apply(lambda x: len(x) < max_len)]
+
         self.label_encoder = LabelBinarizer().fit(self.data["label"])
 
         # Create the embedding dictionary

@@ -131,8 +131,8 @@ class Trainer:
 
         progress_bar.close()
         val_loss = total_loss / len(val_data)               # avg batch loss
-        all_pred = torch.concatenate(all_pred)              # concat all tensors in a single tensor
-        all_labels = torch.concatenate(all_labels)
+        all_pred = torch.concatenate(all_pred).argmax(dim=1)              # concat all tensors in a single tensor
+        all_labels = torch.concatenate(all_labels).argmax(dim=1)
 
         # compute metrics
         metrics_result = {name: metric_fn(all_pred, all_labels) for name, metric_fn in self.metrics.items()}
