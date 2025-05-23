@@ -12,38 +12,33 @@ paths:  # paths are relative to the project's root folder
   model_checkpoint: checkpoints/
 
 data:
-  batch_size: 64
+  batch_size: 256
   max_seq_len: 2000
   shuffle: true
   validation_split: 0.15
   num_classes: 5
 
 ProtTransMLP:
+  dataset_type: ProtTrans
   embedding_dim: 1024
   n_hidden: 3
   hidden_dims: [1024, 512, 256]
   dropout_rate: 0.1
   batch_norm: true
-
-sample_model_config:
-  name: MyMLP
-  input_size: [100]
-  dropout_rate: 0.3
+  loss: cross_entropy
   training:
-    epochs: 50
+    epochs: 20
+    optimizer: adamw
     learning_rate: 0.001
-    optimizer: adam
     weight_decay: 0.0001
     early_stopping:
-      enabled: true
       patience: 5
+      min_delta: 0.01
 
 evaluation:
   metrics: [accuracy, f1_score]
 
 hyperopt:
-  enabled: false
-  max_trials: 50
-  sampler: tpe
-  pruner: hyperband
+  min_resource: 3 # minimum epochs in a trial
+  num_trials: 60 # number of trials for hyperopt
 
