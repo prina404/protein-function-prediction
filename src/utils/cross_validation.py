@@ -1,6 +1,6 @@
 from Trainer import Trainer, EarlyStopping
 from ProteinDataset import ProteinDataset
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from sklearn.model_selection import StratifiedKFold
 from utils.config import CFG
 import numpy as np
@@ -31,11 +31,20 @@ def kfoldCV(
     for i, (train_ids, val_ids) in enumerate(fold.split(x, y)): # Iter over fold indices
         print(f"Fold {i + 1}/{num_folds}")
 
-        train_subsampler = torch.utils.data.SubsetRandomSampler(train_ids)
-        val_subsampler = torch.utils.data.SubsetRandomSampler(val_ids)
+        train_df = dataset.data.iloc[train_ids]
+        val_df = dataset.data.iloc[val_ids]
 
-        train_loader = DataLoader(dataset, batch_size=CFG["data"]["batch_size"], num_workers=8, sampler=train_subsampler)
-        val_loader = DataLoader(dataset, batch_size=CFG["data"]["batch_size"], num_workers=8, sampler=val_subsampler)
+        # Create a new dataset for each fold
+        dataset_cls = dataset.__class__
+        train_fold = dataset_cls(train_df, CFG.train_data)
+        val_fold = dataset_cls(val_df, CFG.train_data)
+
+        # samplers based on the class frequencies to perform oversampling
+        train_sampler = WeightedRandomSampler(train_fold.get_sample_weights(), len(train_fold), replacement=True)
+        val_sampler = WeightedRandomSampler(val_fold.get_sample_weights(), len(val_fold), replacement=True)
+
+        train_loader = DataLoader(dataset, batch_size=CFG["data"]["batch_size"], num_workers=8, sampler=train_sampler)
+        val_loader = DataLoader(dataset, batch_size=CFG["data"]["batch_size"], num_workers=8, sampler=val_sampler)
 
         model_trainer.reset_training()
         model_trainer.train(train_loader, val_loader, epochs, ES)  # train on current fold
@@ -43,7 +52,7 @@ def kfoldCV(
         val_loss = (
             model_trainer.evaluate(val_loader)  # If ES restored weights, re-run evaluation
             if ES and ES.was_triggered
-            else model_trainer.history["val_loss"][-1]
+            else model_trainer.history["validation_loss"][-1]
         )
 
         fold_losses += val_loss

@@ -3,6 +3,37 @@ import pandas as pd
 
 from sklearn.model_selection import train_test_split
 from utils.config import CFG
+from pathlib import Path
+
+
+def load_csv(file_path: str | Path) -> pd.DataFrame:
+    """
+    Loads a CSV file into a pandas DataFrame. 
+    it ensures the train/test folders exist and it removes sequences longer than max_seq_len.
+
+    Args:
+        file_path (str): Path to the CSV file.
+
+    Returns:
+        pd.DataFrame: Loaded DataFrame.
+    """
+    assert str(file_path).endswith(".csv"), f"File {file_path} is not a CSV file."
+    
+    if not os.path.exists(CFG.data_dir):
+        raise FileNotFoundError(f"Data directory {CFG.data_dir} does not exist.")
+
+    # check if train and test folders exist, otherwise create them
+    data_split_ok = os.path.exists(CFG.train_data) and os.path.exists(CFG.test_data)
+    if not data_split_ok:
+        make_test_train_folders()
+
+    # Read data from disk 
+    data = pd.read_csv(file_path)
+    max_len = CFG['data']['max_seq_len']
+    # Remove sequences longer than max_seq_len
+    data = data[data["sequence"].apply(lambda x: len(x) < max_len)]
+    
+    return data.reset_index(drop=True)
 
 
 def make_test_train_folders():

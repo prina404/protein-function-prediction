@@ -9,20 +9,13 @@ from torch.utils.data import Dataset
 from sklearn.preprocessing import LabelBinarizer
 from pathlib import Path
 from collections import defaultdict
+from functools import cache
 
 
 class ProteinDataset(Dataset):
-    def __init__(self, data_file: str | Path):
-        if not os.path.exists(CFG.data_dir):
-            raise FileNotFoundError(f"Data directory {CFG.data_dir} does not exist.")
+    def __init__(self, data_df: pd.DataFrame, *args, **kwargs):
+        self.data = data_df.copy().sort_index()
 
-        # check if train and test folders exist, otherwise create them
-        data_split_ok = os.path.exists(CFG.train_data) and os.path.exists(CFG.test_data)
-        if not data_split_ok:
-            util.make_test_train_folders()
-
-        # Read data from disk and initialize the label encoder
-        self.data = pd.read_csv(data_file)
         max_len = CFG['data']['max_seq_len']
         # Remove sequences longer than max_seq_len
         self.data = self.data[self.data["sequence"].apply(lambda x: len(x) < max_len)]
@@ -53,6 +46,7 @@ class ProteinDataset(Dataset):
 
         return torch.tensor(matrix, dtype=torch.float32)
     
+    @cache
     def _create_embedding(self, seq: str) -> torch.Tensor:
         embedding_matrix = self._full_embeddings(seq)
         # sum matrix rows together to get a single embedding
@@ -64,3 +58,16 @@ class ProteinDataset(Dataset):
         oneHot_label = self.label_encoder.transform([label])[0]
 
         return seq_embedding, torch.tensor(oneHot_label, dtype=torch.float32)
+
+    def get_sample_weights(self) -> torch.Tensor:
+        '''
+        Returns a tensor of sample weights for the dataset. The sample weights are computed as the inverse of the
+        class frequencies in the dataset. The sample weights are used to balance the dataset during training.
+        '''
+        class_counts = self.data["label"].value_counts()
+        class_weights = (1.0 / class_counts) 
+        
+        sample_weights = class_weights[self.data["label"]].values
+        return torch.tensor(sample_weights, dtype=torch.float32)
+
+
