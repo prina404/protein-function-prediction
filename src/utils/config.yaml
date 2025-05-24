@@ -18,6 +18,13 @@ data:
   validation_split: 0.15
   num_classes: 5
 
+ProtTransMLP:
+  embedding_dim: 1024
+  n_hidden: 3
+  hidden_dims: [1024, 512, 256]
+  dropout_rate: 0.1
+  batch_norm: true
+
 sample_model_config:
   name: MyMLP
   input_size: [100]
