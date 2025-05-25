@@ -25,7 +25,8 @@ dependencies = [
     "torchmetrics",
     "tqdm",
     "transformers",
-    "sentencepiece"
+    "sentencepiece",
+    "optuna",
 ]
 
 [tool.setuptools]
