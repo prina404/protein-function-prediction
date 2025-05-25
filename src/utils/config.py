@@ -17,16 +17,20 @@ class Config:
         self.data_dir = self.root_dir / self.cfg["paths"]["data_dir"]
 
         self.dataset_raw = self.root_dir / self.cfg["paths"]["dataset_raw"]
-        self.train_data = self.root_dir / self.cfg["paths"]["train_data"]
-        self.test_data = self.root_dir / self.cfg["paths"]["test_data"]
 
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.num_classes = self.cfg["data"]["num_classes"]
+        class_name = f"{self.num_classes}class"
+
+        self.train_data = self.root_dir / "data" / f"{class_name}/train/train_{class_name}.csv"
+        self.test_data = self.root_dir / "data" / f"{class_name}/test/test_{class_name}.csv"
+
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # TODO: add frequently used fields as class attributes
 
     def __getitem__(self, item: str):
         return self.cfg[item]
-    
+
     def save_config(self, config_path=None):
         """
         Write the current configuration to a YAML file.
@@ -36,6 +40,7 @@ class Config:
         config_path = self._path if not config_path else config_path
         with open(config_path, "w") as f:
             yaml.dump(self.cfg, f, default_flow_style=False)
+
 
 # if imported as a module, this becomes my config singleton
 CFG = Config()
