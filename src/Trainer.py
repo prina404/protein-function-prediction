@@ -74,7 +74,7 @@ class Trainer:
         self.scheduler_init = copy.deepcopy(scheduler.state_dict()) if scheduler else None
 
     def train(self, train_data: DataLoader, val_data: DataLoader, epochs=20, early_stopping: EarlyStopping = None):
-        self.training_id = self.model.__class__.__name__ + "_weights_" + str(datetime.now().strftime("%m-%d_%H-%M"))
+        self.training_id = self.model.__class__.__name__ + f"_{CFG.num_classes}class"
 
         if early_stopping: # reset early stopping in case multiple training runs are performed
             early_stopping.reset_state()
