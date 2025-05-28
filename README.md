@@ -1,33 +1,11 @@
-# Protein function prediction
-Project for the Deep Learning for Life Sciences 4EU+ hackathon
+# Experimental Transformer branch 
 
-## Prerequisites
+This branch contains a failed experiment which consisted in training a transformer from scratch.
 
-The custom `Dataset` classes in this project require that the **ProtVec** dataset [[link](http://dx.doi.org/10.7910/DVN/JMFHTN)] has been extracted into the `data` folder.
 
-## Installation 
+Major headaches:
 
-- Clone this repo:
-    ```bash
-    $ git clone https://github.com/prina404/protein-function-prediction.git 
-    $ cd protein-function-prediction/
-    ```
+- Vanilla transformer with quadratic attention is basically infeasible on single GPU, unless context window is kept at a ridiculously small size. 
+- Using padding is WAY easier and effective than using nested tensors
 
-- Initialize a python virtual environment and activate it:
-    ```bash
-    $  python3 -m venv .venv && source .venv/bin/activate
-    ```
-- Install this project as a package
-    ```bash
-    $ pip install -e .
-    ```
-Now any `*.py` module under the `src/` folder can be imported, and `src/` is automatically set as its root folder. 
-For example:
-
-```python
-# this can be a script located anywhere in this repo
-import ProteinDataset   # this imports src/ProteinDataset.py
-import utils.config     # this imports src/utils/config.py
-
-...
-```
+Note for future me: use padding and linear/sparse attention    
