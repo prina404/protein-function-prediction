@@ -35,7 +35,6 @@ class ProtTransClassifier(nn.Module):
             input_dim = hidden_dim
         
         layers.append(nn.Linear(input_dim, CFG['data']['num_classes'] + 1))
-        layers.append(nn.Softmax(dim=1))
 
         self.model = nn.Sequential(*layers)
 

@@ -8,6 +8,8 @@ from typing import Callable
 from Trainer import EarlyStopping
 from utils.training_utils import init_trainer, init_loaders
 import joblib
+from contextlib import redirect_stdout
+import os
 
 
 def objective_MLP(model: nn.Module, model_config: dict) -> Callable[[Trial], float]:
@@ -22,7 +24,7 @@ def objective_MLP(model: nn.Module, model_config: dict) -> Callable[[Trial], flo
     cfg = model_config  # NOTE: the CFG object will be modified during optimization
 
     ES = None
-    if 'early_stopping' in cfg:
+    if "early_stopping" in cfg:
         es_cfg = cfg["early_stopping"]
         ES = EarlyStopping(
             patience=es_cfg["patience"],
@@ -54,8 +56,12 @@ def objective_MLP(model: nn.Module, model_config: dict) -> Callable[[Trial], flo
         trainer = init_trainer(m, cfg)
         train_loader, val_loader = init_loaders(cfg)
 
+        print(f"Starting trial n. {trial.number}")
         for epoch in range(train_cfg["epochs"]):
-            trainer.train(train_loader, val_loader, epochs=1, early_stopping=ES)
+            with open(os.devnull, "w") as f:  ## Output redirection to avoid spamming progress bars
+                with redirect_stdout(f):
+                    trainer.train(train_loader, val_loader, epochs=1, early_stopping=ES)
+
             val_loss = trainer.history["validation_loss"][-1]
             trial.report(val_loss, step=epoch)
 
@@ -83,7 +89,7 @@ def optimize_hyperparameters(
         obj_builder (Callable): The objective function builder for Optuna.
         n_trials (int): The number of trials to run.
     """
-    name = f"{model.__class__.__name__}_{CFG['data']['num_classes']}classes_study"
+    name = f"{model.__class__.__name__}_{CFG.num_classes}classes_study"
 
     study = create_study(
         study_name=name,
@@ -98,6 +104,23 @@ def optimize_hyperparameters(
     study.optimize(objective, n_trials=n_trials)
 
     path = CFG.root_dir / CFG["paths"]["save_dir"] / "optuna"
-    joblib.dump(study, path / f"{name}.pkl")
+    with open(path / f"{name}.pkl", 'wb') as f:
+        joblib.dump(study, f)
 
     return study
+
+
+def apply_best_config(study: optuna.Study, model_cfg: dict) -> None:
+    train_cfg = model_cfg["training"]
+    hidden_dims = {}
+    for param in study.best_params:
+        current_param = study.best_params[param]
+        if param in model_cfg:
+            model_cfg[param] = current_param
+        if param in train_cfg:
+            train_cfg[param] = current_param
+        if param.startswith('hidden_dim'):
+            hidden_dims[param] = current_param
+    
+    if hidden_dims:
+        model_cfg['hidden_dims'] = [hidden_dims[layer] for layer in sorted(list(hidden_dims.keys()))]

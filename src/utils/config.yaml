@@ -1,42 +1,40 @@
-project:
-  name: protein-function-prediction
-  seed: 42
-
-paths:  # paths are relative to the project's root folder
-  data_dir: data/
-  dataset_raw: data/dataverse_files.zip
-  save_dir: outputs/
-  log_dir: logs/
-  model_checkpoint: checkpoints/
-
+ProtTransMLP:
+  batch_norm: true
+  dataset_type: ProtTrans
+  dropout_rate: 0.0
+  embedding_dim: 1024
+  hidden_dims:
+  - 1024
+  - 128
+  loss: cross_entropy
+  n_hidden: 2
+  training:
+    early_stopping:
+      min_delta: 0.01
+      patience: 9
+    epochs: 30
+    learning_rate: 1.6426745407354637e-05
+    optimizer: adamw
+    weight_decay: 1.3296139485485973e-05
 data:
   batch_size: 256
   max_seq_len: 2000
+  num_classes: 5
   shuffle: true
   validation_split: 0.15
-  num_classes: 5
-
-ProtTransMLP:
-  dataset_type: ProtTrans
-  embedding_dim: 1024
-  n_hidden: 3
-  hidden_dims: [1024, 512, 256]
-  dropout_rate: 0.1
-  batch_norm: true
-  loss: cross_entropy
-  training:
-    epochs: 20
-    optimizer: adamw
-    learning_rate: 0.001
-    weight_decay: 0.0001
-    early_stopping:
-      patience: 5
-      min_delta: 0.01
-
 evaluation:
-  metrics: [accuracy, f1_score]
-
+  metrics:
+  - accuracy
+  - f1_score
 hyperopt:
-  min_resource: 3 # minimum epochs in a trial
-  num_trials: 60 # number of trials for hyperopt
-
+  min_resource: 4
+  num_trials: 60
+paths:
+  data_dir: data/
+  dataset_raw: data/dataverse_files.zip
+  log_dir: logs/
+  model_checkpoint: checkpoints/
+  save_dir: outputs/
+project:
+  name: protein-function-prediction
+  seed: 42

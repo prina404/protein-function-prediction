@@ -27,6 +27,9 @@ dependencies = [
     "transformers",
     "sentencepiece",
     "optuna",
+    "plotly",
+    "kaleido",
+    "xgboost"
 ]
 
 [tool.setuptools]
