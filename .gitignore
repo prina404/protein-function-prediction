@@ -177,5 +177,7 @@ cython_debug/
 .vscode/*
 
 data/
+outputs/
 src/*.ipynb
 **.pt
+**.csv
