@@ -1,10 +1,11 @@
+from contextlib import redirect_stdout
 from Trainer import Trainer, EarlyStopping
 from ProteinDataset import ProteinDataset
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from sklearn.model_selection import StratifiedKFold
 from utils.config import CFG
 import numpy as np
-import torch
+import os
 
 
 def kfoldCV(
@@ -29,7 +30,7 @@ def kfoldCV(
 
     x, y = np.zeros(len(dataset)), dataset.data["label"]  # use only the labels for stratified kfold
     for i, (train_ids, val_ids) in enumerate(fold.split(x, y)): # Iter over fold indices
-        print(f"Fold {i + 1}/{num_folds}")
+        print(f"Starting fold {i + 1}/{num_folds}")
 
         train_df = dataset.data.iloc[train_ids]
         val_df = dataset.data.iloc[val_ids]
@@ -47,14 +48,16 @@ def kfoldCV(
         val_loader = DataLoader(dataset, batch_size=CFG["data"]["batch_size"], num_workers=8, sampler=val_sampler)
 
         model_trainer.reset_training()
-        model_trainer.train(train_loader, val_loader, epochs, ES)  # train on current fold
+        with open(os.devnull, 'w') as f: ## redirect stdout to avoid progress bar spamming
+            with redirect_stdout(f):
+                model_trainer.train(train_loader, val_loader, epochs, ES)  # train on current fold
+                val_loss = (
+                    model_trainer.evaluate(val_loader)  # If ES restored weights, re-run evaluation
+                    if ES and ES.was_triggered
+                    else model_trainer.history["validation_loss"][-1]
+                )
 
-        val_loss = (
-            model_trainer.evaluate(val_loader)  # If ES restored weights, re-run evaluation
-            if ES and ES.was_triggered
-            else model_trainer.history["validation_loss"][-1]
-        )
-
+        print(f"Fold {i+1}/{num_folds} ended with loss: {val_loss:.4f}")
         fold_losses += val_loss
 
     print(f"{num_folds}-fold CV loss: {fold_losses / num_folds:.4f}")
